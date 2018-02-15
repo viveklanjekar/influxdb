@@ -11,6 +11,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const TimeFormat = "2006-01-02T15:04:05.000000000Z07:00"
+
 func New(w io.Writer) *zap.Logger {
 	config := NewConfig()
 	l, _ := config.New(w)
@@ -63,7 +65,7 @@ func newEncoder(format string) (zapcore.Encoder, error) {
 func newEncoderConfig() zapcore.EncoderConfig {
 	config := zap.NewProductionEncoderConfig()
 	config.EncodeTime = func(ts time.Time, encoder zapcore.PrimitiveArrayEncoder) {
-		encoder.AppendString(ts.UTC().Format(time.RFC3339))
+		encoder.AppendString(ts.UTC().Format(TimeFormat))
 	}
 	config.EncodeDuration = func(d time.Duration, encoder zapcore.PrimitiveArrayEncoder) {
 		encoder.AppendString(d.String())
