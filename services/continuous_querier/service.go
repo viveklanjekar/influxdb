@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/influxdata/influxdb/logger"
 	"github.com/influxdata/influxdb/models"
 	"github.com/influxdata/influxdb/query"
 	"github.com/influxdata/influxdb/services/meta"
@@ -360,19 +361,26 @@ func (s *Service) ExecuteContinuousQuery(dbi *meta.DatabaseInfo, cqi *meta.Conti
 		return false, err
 	}
 
-	var start time.Time
+	var (
+		start time.Time
+		log   = s.Logger
+	)
 	if s.loggingEnabled || s.queryStatsEnabled {
 		start = time.Now()
 	}
 
 	if s.loggingEnabled {
-		s.Logger.Info(fmt.Sprintf("executing continuous query %s (%v to %v)", cq.Info.Name, startTime, endTime))
+		var logEnd func()
+		log, logEnd = logger.NewOperation(s.Logger, "Continuous query execution", "continuous_querier.execute")
+		defer logEnd()
+
+		log.Info(fmt.Sprintf("executing continuous query %s (%v to %v)", cq.Info.Name, startTime, endTime))
 	}
 
 	// Do the actual processing of the query & writing of results.
 	res := s.runContinuousQueryAndWriteResult(cq)
 	if res.Err != nil {
-		s.Logger.Info(fmt.Sprintf("error: %s. running: %s", res.Err, cq.q.String()))
+		log.Info(fmt.Sprintf("error: %s. running: %s", res.Err, cq.q.String()))
 		return false, res.Err
 	}
 
@@ -389,7 +397,7 @@ func (s *Service) ExecuteContinuousQuery(dbi *meta.DatabaseInfo, cqi *meta.Conti
 	}
 
 	if s.loggingEnabled {
-		s.Logger.Info(fmt.Sprintf("finished continuous query %s, %d points(s) written (%v to %v) in %s", cq.Info.Name, written, startTime, endTime, execDuration))
+		log.Info(fmt.Sprintf("finished continuous query %s, %d points(s) written (%v to %v) in %s", cq.Info.Name, written, startTime, endTime, execDuration))
 	}
 
 	if s.queryStatsEnabled && s.Monitor.Enabled() {
